@@ -2,6 +2,8 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,7 +19,8 @@ export class MediaService {
   constructor(
     @InjectRepository(Media)
     private mediaRepository: Repository<Media>,
-    private coursesService: CoursesService,
+    @Inject(forwardRef(() => CoursesService))
+    private readonly coursesService: CoursesService,
     private configService: ConfigService,
   ) {
     cloudinary.config({

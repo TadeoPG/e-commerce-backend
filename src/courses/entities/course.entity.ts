@@ -20,6 +20,9 @@ export class Course extends BaseEntity {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ nullable: true })
+  thumbnailUrl: string;
+
   @ManyToMany(() => Order, (order) => order.courses)
   orders: Order[];
 
