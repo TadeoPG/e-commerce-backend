@@ -1,5 +1,7 @@
-import { IsArray, IsUUID } from 'class-validator';
+import { IsArray, IsUUID, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { CreatePaymentDto } from 'src/payments/dto/create-payment.dto';
 
 export class CreateOrderDto {
   @ApiProperty({
@@ -9,4 +11,9 @@ export class CreateOrderDto {
   @IsArray()
   @IsUUID('4', { each: true })
   courseIds: string[];
+
+  @ApiProperty()
+  @ValidateNested()
+  @Type(() => CreatePaymentDto)
+  payment: CreatePaymentDto;
 }

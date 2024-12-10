@@ -2,15 +2,18 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
-import { Order } from './entities/order.entity';
+import { Order, OrderStatus } from './entities/order.entity';
 import { FilterOrdersDto } from './dto/filter-orders.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { CoursesService } from '../courses/courses.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UsersService } from 'src/users/users.service';
+import { PaymentsService } from 'src/payments/payments.service';
 
 @Injectable()
 export class OrdersService {
@@ -19,6 +22,8 @@ export class OrdersService {
     private readonly orderRepository: Repository<Order>,
     private readonly usersService: UsersService,
     private readonly coursesService: CoursesService,
+    @Inject(forwardRef(() => PaymentsService))
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   async create(userId: string, createOrderDto: CreateOrderDto): Promise<Order> {
@@ -40,9 +45,27 @@ export class OrdersService {
       user,
       courses,
       total,
+      status: OrderStatus.PENDING,
     });
 
-    return await this.orderRepository.save(order);
+    const savedOrder = await this.orderRepository.save(order);
+
+    // Procesar el pago
+    const payment = await this.paymentsService.createPayment(
+      savedOrder,
+      createOrderDto.payment,
+    );
+
+    // Actualizar el estado de la orden según el resultado del pago
+    if (payment.status === 'completed') {
+      savedOrder.status = OrderStatus.COMPLETED;
+    } else if (payment.status === 'failed') {
+      savedOrder.status = OrderStatus.FAILED;
+    } else {
+      savedOrder.status = OrderStatus.PROCESSING;
+    }
+
+    return await this.orderRepository.save(savedOrder);
   }
 
   async findUserOrders(
