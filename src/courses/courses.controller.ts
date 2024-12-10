@@ -9,12 +9,16 @@ import {
   Query,
   UseGuards,
   ValidationPipe,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -23,6 +27,7 @@ import { FilterCoursesDto } from './dto/filter-courses.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('courses')
 @ApiBearerAuth()
@@ -30,12 +35,46 @@ import { AdminGuard } from '../auth/guards/admin.guard';
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
+  // @Post()
+  // @UseGuards(JwtAuthGuard, AdminGuard)
+  // @ApiOperation({ summary: 'Create new course (Admin only)' })
+  // @ApiResponse({ status: 201, description: 'Course created successfully' })
+  // async create(@Body() createCourseDto: CreateCourseDto) {
+  //   return this.coursesService.create(createCourseDto);
+  // }
+
   @Post()
   @UseGuards(JwtAuthGuard, AdminGuard)
-  @ApiOperation({ summary: 'Create new course (Admin only)' })
-  @ApiResponse({ status: 201, description: 'Course created successfully' })
-  async create(@Body() createCourseDto: CreateCourseDto) {
-    return this.coursesService.create(createCourseDto);
+  @UseInterceptors(FileInterceptor('thumbnail'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        thumbnail: {
+          type: 'string',
+          format: 'binary',
+        },
+        title: {
+          type: 'string',
+        },
+        description: {
+          type: 'string',
+        },
+        price: {
+          type: 'number',
+        },
+        instructor: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  async create(
+    @UploadedFile() file: any,
+    @Body() createCourseDto: CreateCourseDto,
+  ) {
+    return this.coursesService.create(file, createCourseDto);
   }
 
   @Get()

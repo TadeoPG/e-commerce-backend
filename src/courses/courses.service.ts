@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, Between } from 'typeorm';
 import { Course } from './entities/course.entity';
@@ -6,17 +6,39 @@ import { FilterCoursesDto } from './dto/filter-courses.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
+import { MediaService } from 'src/media/media.service';
+import { MediaType } from 'src/media/entities/media.entity';
 
 @Injectable()
 export class CoursesService {
   constructor(
     @InjectRepository(Course)
     private readonly courseRepository: Repository<Course>,
+    @Inject(forwardRef(() => MediaService))
+    private readonly mediaService: MediaService,
   ) {}
 
-  async create(createCourseDto: CreateCourseDto): Promise<Course> {
+  async create(file: any, createCourseDto: CreateCourseDto): Promise<Course> {
+    // Primero creamos el curso
     const course = this.courseRepository.create(createCourseDto);
-    return await this.courseRepository.save(course);
+    const savedCourse = await this.courseRepository.save(course);
+
+    // Luego subimos la miniatura como media
+    if (file) {
+      const thumbnailDto = {
+        title: `${course.title} thumbnail`,
+        type: MediaType.IMAGE,
+        courseId: savedCourse.id,
+      };
+
+      const thumbnail = await this.mediaService.uploadMedia(file, thumbnailDto);
+
+      // Actualizamos el curso con la URL de la miniatura
+      savedCourse.thumbnailUrl = thumbnail.url;
+      await this.courseRepository.save(savedCourse);
+    }
+
+    return savedCourse;
   }
 
   async findAll(
